@@ -21,4 +21,11 @@ import java.util.List;
 public class SeckillProductController {
     @Autowired
     private ISeckillProductService seckillProductService;
+
+
+    @RequestMapping("/queryByTime")
+    public Result<List<SeckillProductVo>> queryByTime(Integer time){
+        return  Result.success(seckillProductService.queryByTime(time));
+    }
+
 }

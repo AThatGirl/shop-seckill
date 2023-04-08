@@ -9,4 +9,5 @@ import java.util.List;
  * Created by lanxw
  */
 public interface ISeckillProductService {
+    List<SeckillProductVo> queryByTime(Integer time);
 }

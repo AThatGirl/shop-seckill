@@ -8,4 +8,5 @@ import java.util.List;
  * Created by lanxw
  */
 public interface IProductService {
+    List<Product> queryByIds(List<Long> productIds);
 }
