@@ -68,4 +68,24 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
 
         return seckillProductVoList;
     }
+
+    @Override
+    public SeckillProductVo find(Integer time, Long seckillId) {
+        //查询秒杀商品对象
+        SeckillProduct seckillProduct = seckillProductMapper.find(seckillId);
+        //根据id查询Product对象
+        List<Long> productIds = new ArrayList<>();
+        productIds.add(seckillProduct.getProductId());
+        Result<List<Product>> result = productFeignApi.queryByIds(productIds);
+        if(result == null || result.hasError()){
+            throw new BusinessException(SeckillCodeMsg.PRODUCT_SERVER_ERROR);
+        }
+        Product product = result.getData().get(0);
+        //将数据封装为VO对象
+        SeckillProductVo vo = new SeckillProductVo();
+        BeanUtils.copyProperties(product, vo);
+        BeanUtils.copyProperties(seckillProduct, vo);
+        vo.setCurrentCount(seckillProduct.getStockCount());
+        return vo;
+    }
 }

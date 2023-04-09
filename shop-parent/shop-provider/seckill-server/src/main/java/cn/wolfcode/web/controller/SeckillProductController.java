@@ -28,4 +28,9 @@ public class SeckillProductController {
         return  Result.success(seckillProductService.queryByTime(time));
     }
 
+    @RequestMapping("/find")
+    public Result<SeckillProductVo> find(Integer time, Long seckillId){
+        return Result.success(seckillProductService.find(time, seckillId));
+    }
+
 }

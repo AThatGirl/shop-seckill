@@ -37,4 +37,11 @@ public interface SeckillProductMapper {
      * @return
      */
     int getStockCount(Long seckillId);
+
+    /**
+     * 根据id查询秒杀商品
+     * @param seckillId
+     * @return
+     */
+    SeckillProduct find(Long seckillId);
 }
