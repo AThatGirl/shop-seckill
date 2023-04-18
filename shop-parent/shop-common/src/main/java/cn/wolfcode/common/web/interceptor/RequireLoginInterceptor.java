@@ -16,7 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Created by lanxw
+ * 处理远程或feign调用
  */
 public class RequireLoginInterceptor implements HandlerInterceptor {
     private StringRedisTemplate redisTemplate;
@@ -36,10 +36,12 @@ public class RequireLoginInterceptor implements HandlerInterceptor {
             if(handlerMethod.getMethodAnnotation(RequireLogin.class)!=null){
                 response.setContentType("application/json;charset=utf-8");
                 String token = request.getHeader(CommonConstants.TOKEN_NAME);
+                //未登录
                 if(StringUtils.isEmpty(token)){
                     response.getWriter().write(JSON.toJSONString(Result.error(CommonCodeMsg.TOKEN_INVALID)));
                     return false;
                 }
+                //token过期或者伪造
                 String phone = JSON.parseObject(redisTemplate.opsForValue().get(CommonRedisKey.USER_TOKEN.getRealKey(token)),String.class);
                 if(phone==null){
                     response.getWriter().write(JSON.toJSONString(Result.error(CommonCodeMsg.TOKEN_INVALID)));

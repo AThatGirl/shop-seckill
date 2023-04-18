@@ -55,7 +55,7 @@ public class UserServiceImpl implements IUserService {
             //缓存中有这个key
             userLogin = JSON.parseObject(objStr,UserLogin.class);
         }
-        redisTemplate.opsForZSet().add(zSetKey,userKey,new Date().getTime());
+        redisTemplate.opsForZSet().add(zSetKey,userKey,System.currentTimeMillis());
         return userLogin;
     }
     @Override

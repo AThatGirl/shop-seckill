@@ -2,10 +2,12 @@ package cn.wolfcode.mapper;
 
 import cn.wolfcode.domain.OrderInfo;
 import org.apache.ibatis.annotations.Param;
+import org.springframework.stereotype.Repository;
 
 /**
  * Created by wolfcode-lanxw
  */
+@Repository
 public interface OrderInfoMapper {
     /**
      * 插入订单信息
@@ -45,4 +47,13 @@ public interface OrderInfoMapper {
      * @return
      */
     int changeRefundStatus(@Param("orderNo") String outTradeNo, @Param("status") Integer statusRefund);
+
+
+    /**
+     * 根据手机号码和秒杀商品id查询订单对象
+     * @param phone
+     * @param seckillId
+     * @return
+     */
+    OrderInfo findByPhoneAndSeckillId(@Param("phone") String phone, @Param("seckillId") Long seckillId);
 }

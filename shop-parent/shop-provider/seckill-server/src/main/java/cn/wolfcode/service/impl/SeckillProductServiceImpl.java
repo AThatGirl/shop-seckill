@@ -88,4 +88,9 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
         vo.setCurrentCount(seckillProduct.getStockCount());
         return vo;
     }
+
+    @Override
+    public void decrStockCount(Long id) {
+        seckillProductMapper.decrStock(id);
+    }
 }

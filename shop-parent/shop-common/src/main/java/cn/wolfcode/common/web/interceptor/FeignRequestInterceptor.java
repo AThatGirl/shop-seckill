@@ -5,7 +5,7 @@ import feign.RequestInterceptor;
 import feign.RequestTemplate;
 
 /**
- * Created by lanxw
+ * 设置请求头信息，为feign远程调用
  */
 public class FeignRequestInterceptor implements RequestInterceptor {
     @Override

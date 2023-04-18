@@ -58,6 +58,7 @@ public class GatewayConfiguration {
     @PostConstruct
     public void initBlockHandlers() {
         BlockRequestHandler blockRequestHandler = new BlockRequestHandler() {
+            @Override
             public Mono<ServerResponse> handleRequest(ServerWebExchange serverWebExchange, Throwable throwable) {
                 Map map = new HashMap<>();
                 map.put("code", 0);

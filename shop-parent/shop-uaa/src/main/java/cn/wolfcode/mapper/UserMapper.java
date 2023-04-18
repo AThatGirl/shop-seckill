@@ -3,10 +3,12 @@ package cn.wolfcode.mapper;
 import cn.wolfcode.common.domain.UserInfo;
 import cn.wolfcode.domain.LoginLog;
 import cn.wolfcode.domain.UserLogin;
+import org.springframework.stereotype.Repository;
 
 /**
  * Created by wolfcode-lanxw
  */
+@Repository
 public interface UserMapper {
     /**
      * 根据用户手机号码查询用户登录信息对象
