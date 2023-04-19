@@ -28,4 +28,19 @@ public interface ISeckillProductService {
      * @param id
      */
     void decrStockCount(Long id);
+
+    /**
+     *  从缓存中获取秒杀商品
+     * @param time
+     * @return
+     */
+    List<SeckillProductVo> queryByTimeFromCache(Integer time);
+
+    /**
+     * 从缓存中获取秒杀商品详情
+     * @param time
+     * @param seckillId
+     * @return
+     */
+    SeckillProductVo findFromCache(Integer time, Long seckillId);
 }

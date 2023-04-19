@@ -6,9 +6,11 @@ import cn.wolfcode.domain.Product;
 import cn.wolfcode.domain.SeckillProduct;
 import cn.wolfcode.domain.SeckillProductVo;
 import cn.wolfcode.mapper.SeckillProductMapper;
+import cn.wolfcode.redis.SeckillRedisKey;
 import cn.wolfcode.service.ISeckillProductService;
 import cn.wolfcode.web.feign.ProductFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
+import com.alibaba.fastjson.JSON;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +37,7 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
     public List<SeckillProductVo> queryByTime(Integer time) {
         //查询秒杀商品集合数据（场次查询当天的数据）
         List<SeckillProduct> seckillProducts = seckillProductMapper.queryCurrentlySeckillProduct(time);
-        if(seckillProducts.size() == 0){
+        if (seckillProducts.size() == 0) {
             return Collections.EMPTY_LIST;
         }
         //遍历秒杀商品集合数据，获取商品id
@@ -45,7 +47,7 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
         }
         //远程调用，获取商品集合
         Result<List<Product>> result = productFeignApi.queryByIds(productIds);
-        if(result == null || result.hasError()){
+        if (result == null || result.hasError()) {
             throw new BusinessException(SeckillCodeMsg.PRODUCT_SERVER_ERROR);
         }
         List<Product> productList = result.getData();
@@ -77,7 +79,7 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
         List<Long> productIds = new ArrayList<>();
         productIds.add(seckillProduct.getProductId());
         Result<List<Product>> result = productFeignApi.queryByIds(productIds);
-        if(result == null || result.hasError()){
+        if (result == null || result.hasError()) {
             throw new BusinessException(SeckillCodeMsg.PRODUCT_SERVER_ERROR);
         }
         Product product = result.getData().get(0);
@@ -92,5 +94,23 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
     @Override
     public void decrStockCount(Long id) {
         seckillProductMapper.decrStock(id);
+    }
+
+    @Override
+    public List<SeckillProductVo> queryByTimeFromCache(Integer time) {
+        String key = SeckillRedisKey.SECKILL_PRODUCT_HASH.getRealKey(String.valueOf(time));
+        List<Object> objectList = redisTemplate.opsForHash().values(key);
+        List<SeckillProductVo> seckillProductVoList = new ArrayList<>();
+        for (Object o : objectList) {
+            seckillProductVoList.add(JSON.parseObject((String) o, SeckillProductVo.class));
+        }
+        return seckillProductVoList;
+    }
+
+    @Override
+    public SeckillProductVo findFromCache(Integer time, Long seckillId) {
+        String key = SeckillRedisKey.SECKILL_PRODUCT_HASH.getRealKey(String.valueOf(time));
+        Object strObj = redisTemplate.opsForHash().get(key, String.valueOf(seckillId));
+        return JSON.parseObject((String) strObj, SeckillProductVo.class);
     }
 }
