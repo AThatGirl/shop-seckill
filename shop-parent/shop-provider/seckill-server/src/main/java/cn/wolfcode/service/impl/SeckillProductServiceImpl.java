@@ -124,7 +124,7 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
             String key = SeckillRedisKey.SECKILL_STOCK_COUNT_HASH.getRealKey(String.valueOf(time));
             //将数据库库存同步到redis
             redisTemplate.opsForHash().put(key, String.valueOf(seckillId), String.valueOf(seckillProduct.getStockCount()));
-            log.info("数据库库存已同步,商品id{},商品库存{}", seckillId, seckillProduct.getProductId());
+            log.info("数据库库存已同步,商品id{},商品库存{}", seckillProduct.getProductId(), seckillProduct.getStockCount());
         }
     }
 

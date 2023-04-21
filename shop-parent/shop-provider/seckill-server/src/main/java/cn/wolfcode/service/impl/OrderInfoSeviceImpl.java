@@ -1,7 +1,10 @@
 package cn.wolfcode.service.impl;
 
 import cn.wolfcode.common.exception.BusinessException;
+import cn.wolfcode.common.web.Result;
 import cn.wolfcode.domain.OrderInfo;
+import cn.wolfcode.domain.PayVo;
+import cn.wolfcode.domain.RefundVo;
 import cn.wolfcode.domain.SeckillProductVo;
 import cn.wolfcode.mapper.OrderInfoMapper;
 import cn.wolfcode.mapper.PayLogMapper;
@@ -10,10 +13,12 @@ import cn.wolfcode.redis.SeckillRedisKey;
 import cn.wolfcode.service.IOrderInfoService;
 import cn.wolfcode.service.ISeckillProductService;
 import cn.wolfcode.util.IdGenerateUtil;
+import cn.wolfcode.web.feign.PayFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +41,9 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     private PayLogMapper payLogMapper;
     @Autowired
     private RefundLogMapper refundLogMapper;
+
+    @Autowired
+    private PayFeignApi payFeignApi;
 
     @Override
     public OrderInfo findByPhoneAndSeckillId(String phone, Long seckillId) {
@@ -84,6 +92,47 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
         }
 
         log.info("超时取消订单完成");
+    }
+
+    @Value("${pay.returnUrl}")
+    private String returnUrl;
+    @Value("${pay.notifyUrl}")
+    private String notifyUrl;
+
+    @Override
+    public Result<String> payOnline(String orderNo) {
+        //根据订单号，查询订单
+        OrderInfo orderInfo = findByOrderNo(orderNo);
+        PayVo vo = new PayVo();
+
+        vo.setOutTradeNo(orderNo);
+        vo.setTotalAmount(String.valueOf(orderInfo.getSeckillPrice()));
+        vo.setSubject(orderInfo.getProductName());
+        vo.setSubject(orderInfo.getProductName());
+        vo.setReturnUrl(returnUrl);
+        vo.setNotifyUrl(notifyUrl);
+        Result<String> result = payFeignApi.payOnline(vo);
+        return result;
+    }
+
+    @Override
+    public int changePayStatus(String orderNo, Integer status, int payType) {
+        return orderInfoMapper.changePayStatus(orderNo, status, payType);
+    }
+
+    @Override
+    public void refundOnline(OrderInfo orderInfo) {
+        RefundVo vo = new RefundVo();
+        vo.setOutTradeNo(orderInfo.getOrderNo());
+        vo.setRefundAmount(String.valueOf(orderInfo.getSeckillPrice()));
+        vo.setRefundReason("不需要了");
+
+        Result<Boolean> result = payFeignApi.refund(vo);
+        if (result == null || result.hasError() || !result.getData()) {
+            throw new BusinessException(SeckillCodeMsg.REFUND_ERROR);
+        }
+        orderInfoMapper.changeRefundStatus(orderInfo.getOrderNo(), OrderInfo.STATUS_REFUND);
+
     }
 
     private OrderInfo createOrderInfo(String phone, SeckillProductVo seckillProductVo) {
