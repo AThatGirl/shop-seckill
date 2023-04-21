@@ -10,6 +10,8 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -46,6 +48,10 @@ public class OrderPeddingQueueListener implements RocketMQListener<OrderMessage>
             result.setOrderNo(orderInfo.getOrderNo());
             tag = MQConstant.ORDER_RESULT_SUCCESS_TAG;
             log.info("抢购成功");
+            //发送延时消息,3s没发送成功,就抛出异常。这里设置10min后发送，检查订单，还没付款就是超时，要取消订单
+            Message<OrderMQResult> message = MessageBuilder.withPayload(result).build();
+            rocketMQTemplate.syncSend(MQConstant.ORDER_PAY_TIMEOUT_TOPIC, message, 3000, MQConstant.ORDER_PAY_TIMEOUT_DELAY_LEVEL);
+            log.info("发送延时消息队列成功");
         } catch (Exception e) {
             e.printStackTrace();
             result.setCode(SeckillCodeMsg.SECKILL_ERROR.getCode());

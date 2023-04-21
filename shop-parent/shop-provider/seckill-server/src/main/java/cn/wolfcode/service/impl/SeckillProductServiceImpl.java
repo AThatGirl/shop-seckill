@@ -119,12 +119,17 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
     @Override
     public void syncStockToRedis(Integer time, Long seckillId) {
         SeckillProduct seckillProduct = seckillProductMapper.find(seckillId);
-        if (seckillProduct.getStockCount() > 0) {
+        if (seckillProduct != null && seckillProduct.getStockCount() > 0) {
 
             String key = SeckillRedisKey.SECKILL_STOCK_COUNT_HASH.getRealKey(String.valueOf(time));
             //将数据库库存同步到redis
             redisTemplate.opsForHash().put(key, String.valueOf(seckillId), String.valueOf(seckillProduct.getStockCount()));
             log.info("数据库库存已同步,商品id{},商品库存{}", seckillId, seckillProduct.getProductId());
         }
+    }
+
+    @Override
+    public void incrStockCount(Long seckillId) {
+        seckillProductMapper.incrStock(seckillId);
     }
 }

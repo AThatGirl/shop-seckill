@@ -50,4 +50,10 @@ public interface ISeckillProductService {
      * @param seckillId
      */
     void syncStockToRedis(Integer time, Long seckillId);
+
+    /**
+     * 添加库存
+     * @param seckillId
+     */
+    void incrStockCount(Long seckillId);
 }

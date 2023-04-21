@@ -47,7 +47,7 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     public OrderInfo doSeckill(String phone, SeckillProductVo seckillProductVo) {
         //扣减数据库库存
         int effectCount = seckillProductService.decrStockCount(seckillProductVo.getId());
-        if (effectCount == 0){
+        if (effectCount == 0) {
             //影响行数为0，说明库存为0
             throw new BusinessException(SeckillCodeMsg.SECKILL_STOCK_OVER);
         }
@@ -64,6 +64,26 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     @Override
     public OrderInfo findByOrderNo(String orderNo) {
         return orderInfoMapper.find(orderNo);
+    }
+
+    @Override
+    @Transactional
+    public void cancelOrder(String orderNo) {
+        OrderInfo orderInfo = orderInfoMapper.find(orderNo);
+        //判断订单是否处于超时未付款
+        if (OrderInfo.STATUS_ARREARAGE.equals(orderInfo.getStatus())) {
+            //修改订单状态
+            int effectCount = orderInfoMapper.updateCancelStatus(orderNo, OrderInfo.STATUS_TIMEOUT);
+            if (effectCount == 0) {
+                return;
+            }
+            //真实库存回补
+            seckillProductService.incrStockCount(orderInfo.getSeckillId());
+            //预库存回补
+            seckillProductService.syncStockToRedis(orderInfo.getSeckillTime(), orderInfo.getSeckillId());
+        }
+
+        log.info("超时取消订单完成");
     }
 
     private OrderInfo createOrderInfo(String phone, SeckillProductVo seckillProductVo) {
