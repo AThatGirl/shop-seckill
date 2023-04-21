@@ -11,6 +11,7 @@ import cn.wolfcode.service.ISeckillProductService;
 import cn.wolfcode.web.feign.ProductFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
 import com.alibaba.fastjson.JSON;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ import java.util.*;
  * Created by lanxw
  */
 @Service
+@Slf4j
 public class SeckillProductServiceImpl implements ISeckillProductService {
     @Autowired
     private SeckillProductMapper seckillProductMapper;
@@ -92,8 +94,8 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
     }
 
     @Override
-    public void decrStockCount(Long id) {
-        seckillProductMapper.decrStock(id);
+    public int decrStockCount(Long id) {
+        return seckillProductMapper.decrStock(id);
     }
 
     @Override
@@ -112,5 +114,17 @@ public class SeckillProductServiceImpl implements ISeckillProductService {
         String key = SeckillRedisKey.SECKILL_PRODUCT_HASH.getRealKey(String.valueOf(time));
         Object strObj = redisTemplate.opsForHash().get(key, String.valueOf(seckillId));
         return JSON.parseObject((String) strObj, SeckillProductVo.class);
+    }
+
+    @Override
+    public void syncStockToRedis(Integer time, Long seckillId) {
+        SeckillProduct seckillProduct = seckillProductMapper.find(seckillId);
+        if (seckillProduct.getStockCount() > 0) {
+
+            String key = SeckillRedisKey.SECKILL_STOCK_COUNT_HASH.getRealKey(String.valueOf(time));
+            //将数据库库存同步到redis
+            redisTemplate.opsForHash().put(key, String.valueOf(seckillId), String.valueOf(seckillProduct.getStockCount()));
+            log.info("数据库库存已同步,商品id{},商品库存{}", seckillId, seckillProduct.getProductId());
+        }
     }
 }

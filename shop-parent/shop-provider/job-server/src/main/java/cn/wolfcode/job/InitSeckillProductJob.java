@@ -47,12 +47,17 @@ public class InitSeckillProductJob implements SimpleJob {
         }
         List<SeckillProductVo> seckillProductVoList = result.getData();
         //删除之前的数据
-        //
+        //seckillProductHash:10
         String key = JobRedisKey.SECKILL_PRODUCT_HASH.getRealKey(time);
+        //库存数量key
+        String seckillCountKey = JobRedisKey.SECKILL_STOCK_COUNT_HASH.getRealKey(time);
         redisTemplate.delete(key);
+        redisTemplate.delete(seckillCountKey);
         //存储集合数据到redis中
         for (SeckillProductVo vo : seckillProductVoList) {
             redisTemplate.opsForHash().put(key, String.valueOf(vo.getId()), JSON.toJSONString(vo));
+            //将库存同步到redis中
+            redisTemplate.opsForHash().put(seckillCountKey, String.valueOf(vo.getId()), String.valueOf(vo.getStockCount()));
         }
 
 

@@ -1,13 +1,17 @@
 package cn.wolfcode.service.impl;
 
+import cn.wolfcode.common.exception.BusinessException;
 import cn.wolfcode.domain.OrderInfo;
 import cn.wolfcode.domain.SeckillProductVo;
 import cn.wolfcode.mapper.OrderInfoMapper;
 import cn.wolfcode.mapper.PayLogMapper;
 import cn.wolfcode.mapper.RefundLogMapper;
+import cn.wolfcode.redis.SeckillRedisKey;
 import cn.wolfcode.service.IOrderInfoService;
 import cn.wolfcode.service.ISeckillProductService;
 import cn.wolfcode.util.IdGenerateUtil;
+import cn.wolfcode.web.msg.SeckillCodeMsg;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,6 +24,7 @@ import java.util.Date;
  * Created by wolfcode-lanxw
  */
 @Service
+@Slf4j
 public class OrderInfoSeviceImpl implements IOrderInfoService {
     @Autowired
     private ISeckillProductService seckillProductService;
@@ -41,7 +46,17 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     @Transactional
     public OrderInfo doSeckill(String phone, SeckillProductVo seckillProductVo) {
         //扣减数据库库存
-        seckillProductService.decrStockCount(seckillProductVo.getId());
+        int effectCount = seckillProductService.decrStockCount(seckillProductVo.getId());
+        if (effectCount == 0){
+            //影响行数为0，说明库存为0
+            throw new BusinessException(SeckillCodeMsg.SECKILL_STOCK_OVER);
+        }
+
+        //在redis中设置Set集合，存储的是抢到秒杀商品用户的手机号
+        //seckillOrderSet:10  -> [13913212342, xxxxxxxxxxx]
+        String orderSetKey = SeckillRedisKey.SECKILL_ORDER_SET.getRealKey(String.valueOf(seckillProductVo.getId()));
+        redisTemplate.opsForSet().add(orderSetKey, phone);
+        log.info("加入set集合成功");
         //创建秒杀订单
         return createOrderInfo(phone, seckillProductVo);
     }

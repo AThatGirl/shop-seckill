@@ -27,7 +27,7 @@ public interface ISeckillProductService {
      * 扣减库存
      * @param id
      */
-    void decrStockCount(Long id);
+    int decrStockCount(Long id);
 
     /**
      *  从缓存中获取秒杀商品
@@ -43,4 +43,11 @@ public interface ISeckillProductService {
      * @return
      */
     SeckillProductVo findFromCache(Integer time, Long seckillId);
+
+    /**
+     * 查询数据库库存同步到redis
+     * @param time
+     * @param seckillId
+     */
+    void syncStockToRedis(Integer time, Long seckillId);
 }
