@@ -2,10 +2,7 @@ package cn.wolfcode.service.impl;
 
 import cn.wolfcode.common.exception.BusinessException;
 import cn.wolfcode.common.web.Result;
-import cn.wolfcode.domain.OrderInfo;
-import cn.wolfcode.domain.PayVo;
-import cn.wolfcode.domain.RefundVo;
-import cn.wolfcode.domain.SeckillProductVo;
+import cn.wolfcode.domain.*;
 import cn.wolfcode.mapper.OrderInfoMapper;
 import cn.wolfcode.mapper.PayLogMapper;
 import cn.wolfcode.mapper.RefundLogMapper;
@@ -13,6 +10,7 @@ import cn.wolfcode.redis.SeckillRedisKey;
 import cn.wolfcode.service.IOrderInfoService;
 import cn.wolfcode.service.ISeckillProductService;
 import cn.wolfcode.util.IdGenerateUtil;
+import cn.wolfcode.web.feign.IntegralFeignApi;
 import cn.wolfcode.web.feign.PayFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +42,9 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
 
     @Autowired
     private PayFeignApi payFeignApi;
+
+    @Autowired
+    private IntegralFeignApi integralFeignApi;
 
     @Override
     public OrderInfo findByPhoneAndSeckillId(String phone, Long seckillId) {
@@ -78,8 +79,9 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     @Transactional
     public void cancelOrder(String orderNo) {
         OrderInfo orderInfo = orderInfoMapper.find(orderNo);
+        log.info("取消的订单号:{}", orderInfo != null ? orderInfo.getOrderNo() : null);
         //判断订单是否处于超时未付款
-        if (OrderInfo.STATUS_ARREARAGE.equals(orderInfo.getStatus())) {
+        if (orderInfo != null && OrderInfo.STATUS_ARREARAGE.equals(orderInfo.getStatus())) {
             //修改订单状态
             int effectCount = orderInfoMapper.updateCancelStatus(orderNo, OrderInfo.STATUS_TIMEOUT);
             if (effectCount == 0) {
@@ -103,16 +105,19 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     public Result<String> payOnline(String orderNo) {
         //根据订单号，查询订单
         OrderInfo orderInfo = findByOrderNo(orderNo);
-        PayVo vo = new PayVo();
+        if (OrderInfo.STATUS_ARREARAGE.equals(orderInfo.getStatus())) {
+            PayVo vo = new PayVo();
 
-        vo.setOutTradeNo(orderNo);
-        vo.setTotalAmount(String.valueOf(orderInfo.getSeckillPrice()));
-        vo.setSubject(orderInfo.getProductName());
-        vo.setSubject(orderInfo.getProductName());
-        vo.setReturnUrl(returnUrl);
-        vo.setNotifyUrl(notifyUrl);
-        Result<String> result = payFeignApi.payOnline(vo);
-        return result;
+            vo.setOutTradeNo(orderNo);
+            vo.setTotalAmount(String.valueOf(orderInfo.getSeckillPrice()));
+            vo.setSubject(orderInfo.getProductName());
+            vo.setSubject(orderInfo.getProductName());
+            vo.setReturnUrl(returnUrl);
+            vo.setNotifyUrl(notifyUrl);
+            Result<String> result = payFeignApi.payOnline(vo);
+            return result;
+        }
+        return Result.error(SeckillCodeMsg.PAY_STATUS_CHANGE);
     }
 
     @Override
@@ -132,6 +137,75 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
             throw new BusinessException(SeckillCodeMsg.REFUND_ERROR);
         }
         orderInfoMapper.changeRefundStatus(orderInfo.getOrderNo(), OrderInfo.STATUS_REFUND);
+
+    }
+
+    @Override
+    @Transactional
+    public void payIntegral(String orderNo) {
+        OrderInfo orderInfo = findByOrderNo(orderNo);
+        if (OrderInfo.STATUS_ARREARAGE.equals(orderInfo.getStatus())) {
+            //处于未支付状态
+            PayLog log = new PayLog();
+            //插入支付日志记录
+            log.setOrderNo(orderNo);
+            log.setPayTime(new Date());
+            log.setTotalAmount(String.valueOf(orderInfo.getIntergral()));
+            log.setPayType(OrderInfo.PAYTYPE_INTERGRAL);
+            payLogMapper.insert(log);
+            //远程调用积分支付，完成积分扣减
+            OperateIntergralVo vo = new OperateIntergralVo();
+            vo.setUserId(orderInfo.getUserId());
+            vo.setValue(orderInfo.getIntergral());
+            //调用积分服务
+            Result result = integralFeignApi.decrIntegral(vo);
+            if (result == null || result.hasError()) {
+                throw new BusinessException(SeckillCodeMsg.INTERGRAL_SERVER_ERROR);
+            }
+            //修改订单状态
+            int effectCount = orderInfoMapper.changePayStatus(orderNo, OrderInfo.STATUS_ACCOUNT_PAID, OrderInfo.PAYTYPE_INTERGRAL);
+            //如果卡在最后一刻付款，可能导致订单取消但未支付成功
+            if (effectCount == 0) {
+                //就要抛出异常，回滚操作
+                throw new BusinessException(SeckillCodeMsg.PAY_ERROR);
+            }
+
+
+        }
+
+
+    }
+
+    @Override
+    @Transactional
+    public void refundIntegral(OrderInfo orderInfo) {
+
+        //判断是否已支付
+        if (OrderInfo.STATUS_ACCOUNT_PAID.equals(orderInfo.getStatus())) {
+            //添加退款记录
+            RefundLog log = new RefundLog();
+            log.setOrderNo(orderInfo.getOrderNo());
+            log.setRefundAmount(orderInfo.getIntergral());
+            log.setRefundReason("不需要了");
+            log.setRefundType(OrderInfo.PAYTYPE_INTERGRAL);
+            refundLogMapper.insert(log);
+            //远程调用服务，增加积分
+            OperateIntergralVo vo = new OperateIntergralVo();
+            vo.setUserId(orderInfo.getUserId());
+            vo.setValue(orderInfo.getIntergral());
+            //调用积分服务
+            Result result = integralFeignApi.incrIntegral(vo);
+            if (result == null || result.hasError()) {
+                throw new BusinessException(SeckillCodeMsg.INTERGRAL_SERVER_ERROR);
+            }
+            //修改订单状态
+            int effectCount = orderInfoMapper.changeRefundStatus(orderInfo.getOrderNo(), OrderInfo.STATUS_REFUND);
+            //如果卡在最后一刻付款，可能导致订单取消但未支付成功
+            if (effectCount == 0) {
+                //就要抛出异常，回滚操作
+                throw new BusinessException(SeckillCodeMsg.REFUND_ERROR);
+            }
+        }
 
     }
 

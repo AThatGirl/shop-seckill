@@ -38,10 +38,13 @@ public class OrderPayController {
 
         if (OrderInfo.PAYTYPE_ONLINE.equals(type)) {
             //在线支付
-            return orderInfoService.payOnline(orderNo);
+            Result<String> result = orderInfoService.payOnline(orderNo);
+            log.info("在线支付完成");
+            return result;
         } else {
             //积分支付
-
+            orderInfoService.payIntegral(orderNo);
+            log.info("积分支付完成");
             return Result.success();
         }
     }
@@ -50,12 +53,13 @@ public class OrderPayController {
     public Result<String> refund(@RequestParam String orderNo){
         OrderInfo orderInfo = orderInfoService.findByOrderNo(orderNo);
         if (OrderInfo.PAYTYPE_ONLINE.equals(orderInfo.getPayType())){
-            //在线支付
+            //在线支付退款
             orderInfoService.refundOnline(orderInfo);
-
+            log.info("在线支付退款完成");
         }else {
-            //积分支付
-
+            //积分支付退款
+            orderInfoService.refundIntegral(orderInfo);
+            log.info("积分退款完成");
         }
         return Result.success();
     }
