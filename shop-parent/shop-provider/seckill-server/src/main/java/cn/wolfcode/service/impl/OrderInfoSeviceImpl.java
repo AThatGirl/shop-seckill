@@ -13,6 +13,7 @@ import cn.wolfcode.util.IdGenerateUtil;
 import cn.wolfcode.web.feign.IntegralFeignApi;
 import cn.wolfcode.web.feign.PayFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
+import io.seata.spring.annotation.GlobalTransactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -177,7 +178,7 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
     }
 
     @Override
-    @Transactional
+    @GlobalTransactional
     public void refundIntegral(OrderInfo orderInfo) {
 
         //判断是否已支付
@@ -193,7 +194,7 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
             OperateIntergralVo vo = new OperateIntergralVo();
             vo.setUserId(orderInfo.getUserId());
             vo.setValue(orderInfo.getIntergral());
-            //调用积分服务
+            //调用积分服务d
             Result result = integralFeignApi.incrIntegral(vo);
             if (result == null || result.hasError()) {
                 throw new BusinessException(SeckillCodeMsg.INTERGRAL_SERVER_ERROR);
@@ -206,7 +207,6 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
                 throw new BusinessException(SeckillCodeMsg.REFUND_ERROR);
             }
         }
-
     }
 
     private OrderInfo createOrderInfo(String phone, SeckillProductVo seckillProductVo) {
