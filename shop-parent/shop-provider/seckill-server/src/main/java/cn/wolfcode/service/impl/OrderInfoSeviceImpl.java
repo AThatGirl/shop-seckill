@@ -13,6 +13,7 @@ import cn.wolfcode.util.IdGenerateUtil;
 import cn.wolfcode.web.feign.IntegralFeignApi;
 import cn.wolfcode.web.feign.PayFeignApi;
 import cn.wolfcode.web.msg.SeckillCodeMsg;
+import com.alibaba.fastjson.JSON;
 import io.seata.spring.annotation.GlobalTransactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -64,16 +65,19 @@ public class OrderInfoSeviceImpl implements IOrderInfoService {
 
         //在redis中设置Set集合，存储的是抢到秒杀商品用户的手机号
         //seckillOrderSet:10  -> [13913212342, xxxxxxxxxxx]
-        String orderSetKey = SeckillRedisKey.SECKILL_ORDER_SET.getRealKey(String.valueOf(seckillProductVo.getId()));
+        /*String orderSetKey = SeckillRedisKey.SECKILL_ORDER_SET.getRealKey(String.valueOf(seckillProductVo.getId()));
         redisTemplate.opsForSet().add(orderSetKey, phone);
-        log.info("加入set集合成功");
+        log.info("加入set集合成功");*/
         //创建秒杀订单
         return createOrderInfo(phone, seckillProductVo);
     }
 
     @Override
     public OrderInfo findByOrderNo(String orderNo) {
-        return orderInfoMapper.find(orderNo);
+        String key = SeckillRedisKey.SECKILL_ORDER_HASH.getRealKey("");
+        String objStr = (String) redisTemplate.opsForHash().get(key, orderNo);
+        //return orderInfoMapper.find(orderNo);
+        return JSON.parseObject(objStr, OrderInfo.class);
     }
 
     @Override
